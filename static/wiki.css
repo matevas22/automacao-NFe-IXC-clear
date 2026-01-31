@@ -1,0 +1,125 @@
+body {
+  background-color: var(--background-color);
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text-color);
+  margin: 0;
+  padding: 0;
+}
+
+.page-content {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 40px;
+  background-color: var(--surface-color);
+  box-shadow: var(--shadow-lg);
+  border-radius: 12px;
+  text-align: center;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+  color: var(--text-color);
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+h1 {
+  font-weight: 700;
+  letter-spacing: -1px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid var(--border-color);
+  margin-bottom: 30px;
+}
+
+.page-content h1[style*="font-size: 4.8em"] {
+  font-size: 3.5rem !important;
+  line-height: 1.2;
+  color: var(--text-color);
+  border-bottom: none;
+}
+
+h5 {
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-top: 30px;
+}
+
+p {
+  font-size: 1.1rem;
+  line-height: 1.8;
+  color: var(--text-color);
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+a {
+  color: var(--accent-color);
+  text-decoration: none;
+  transition: color 0.2s ease;
+  font-weight: 500;
+}
+
+a:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+ul.contents {
+  list-style: none;
+  padding: 20px;
+  background-color: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  display: inline-block;
+  margin: 30px auto;
+  text-align: left;
+}
+
+ul.contents li {
+  margin: 10px 0;
+  text-align: center;
+}
+
+ul.contents a {
+  font-size: 1.1rem;
+  color: var(--text-color);
+}
+
+ul.contents a:hover {
+  color: #3498db;
+}
+
+img {
+  max-width: 100%;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  display: block;
+}
+
+.page-break {
+  height: 1px;
+  background-color: #ecf0f1;
+  margin: 50px 0;
+  width: 100%;
+}
+
+.btn {
+  display: inline-block;
+  background-color: #3498db;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.btn:hover {
+  background-color: #2980b9;
+  color: white;
+  text-decoration: none;
+}

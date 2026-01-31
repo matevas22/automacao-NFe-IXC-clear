@@ -1,0 +1,288 @@
+{% extends 'layout.html' %} {% block content %}
+<h1>Gerador de Relatório</h1>
+
+{% if error %}
+<div class="error">{{ error }}</div>
+{% endif %}
+
+<form id="reportForm" method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+  <label class="input-label">Selecione o Provedor:</label>
+  <div class="radio-group">
+    <div class="radio-option">
+      <input
+        type="radio"
+        id="netflex"
+        name="provider"
+        value="netflex"
+        checked
+      />
+      <label for="netflex">Netflex</label>
+    </div>
+    <div class="radio-option">
+      <input type="radio" id="fiberflex" name="provider" value="fiberflex" />
+      <label for="fiberflex">Fiberflex</label>
+    </div>
+    <div class="radio-option">
+      <input type="radio" id="atuamax" name="provider" value="atuamax" />
+      <label for="atuamax">Atuamax</label>
+    </div>
+  </div>
+
+  <div
+    style="
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    "
+  >
+    <label class="input-label" for="ids_notas" style="margin-bottom: 0"
+      >Insira os IDs das Notas (um por linha):</label
+    >
+    <span id="lineCount" class="counter-badge">0 linhas</span>
+  </div>
+  <textarea
+    name="ids_notas"
+    id="ids_notas"
+    placeholder="Exemplo:
+2036688
+2036689
+2036690"
+  ></textarea>
+
+  <button type="submit">Processar e Baixar Excel</button>
+</form>
+
+<div
+  id="successCard"
+  class="card"
+  style="display: none; text-align: center; animation: fadeIn 0.3s ease"
+>
+  <div
+    style="
+      background-color: var(--success-bg);
+      color: var(--success-text);
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px auto;
+    "
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="32"
+      height="32"
+      fill="currentColor"
+      viewBox="0 0 16 16"
+    >
+      <path
+        d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"
+      />
+    </svg>
+  </div>
+
+  <h2 style="color: var(--primary-color); margin-bottom: 8px">
+    Relatório Gerado!
+  </h2>
+  <p style="color: var(--secondary-color); margin-bottom: 24px">
+    O arquivo Excel foi processado com sucesso e está pronto.
+  </p>
+
+  <div
+    style="
+      background-color: var(--input-bg);
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    "
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      fill="#166534"
+      viewBox="0 0 16 16"
+    >
+      <path
+        d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"
+      />
+    </svg>
+    <span
+      id="fileNameDisplay"
+      style="
+        font-family: &quot;Consolas&quot;, monospace;
+        font-weight: 600;
+        color: var(--text-color);
+      "
+      >relatorio.xlsx</span
+    >
+  </div>
+
+  <div style="display: flex; gap: 12px; flex-direction: column">
+    <button
+      id="downloadBtn"
+      style="
+        background-color: var(--success-text);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      "
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        fill="currentColor"
+        viewBox="0 0 16 16"
+      >
+        <path
+          d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"
+        />
+        <path
+          d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 1-.708.708l3 3z"
+        />
+      </svg>
+      Baixar Arquivo
+    </button>
+    <button
+      id="resetBtn"
+      style="
+        background-color: white;
+        color: var(--text-muted);
+        border: 1px solid var(--border-color);
+        box-shadow: none;
+      "
+    >
+      Gerar Novo Relatório
+    </button>
+  </div>
+</div>
+
+<div id="loadingModal" class="modal-overlay">
+  <div class="modal-content">
+    <div class="spinner"></div>
+    <div class="loading-text">Processando notas...</div>
+    <div style="margin-top: 10px; font-size: 14px; color: #777">
+      Isso pode levar alguns segundos.
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  document
+    .getElementById("reportForm")
+    .addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const modal = document.getElementById("loadingModal");
+      const form = this;
+      const successCard = document.getElementById("successCard");
+      const formData = new FormData(form);
+      const submitBtn = form.querySelector("button");
+
+      modal.style.display = "flex";
+      submitBtn.disabled = true;
+
+      try {
+        const response = await fetch("/", {
+          method: "POST",
+          body: formData,
+        });
+
+        const contentType = response.headers.get("content-type");
+
+        if (
+          contentType &&
+          contentType.includes(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          )
+        ) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+
+          let filename = "relatorio.xlsx";
+          const disposition = response.headers.get("content-disposition");
+
+          if (disposition && disposition.indexOf("attachment") !== -1) {
+            const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(
+              disposition,
+            );
+            if (matches != null && matches[1]) {
+              filename = matches[1].replace(/['"]/g, "");
+            }
+          }
+
+          if (filename === "relatorio.xlsx") {
+            const selectedProvider = formData.get("provider");
+            const providerName = selectedProvider
+              ? selectedProvider.charAt(0).toUpperCase() +
+                selectedProvider.slice(1)
+              : "Relatorio";
+            filename = `relatorio_notas_${providerName}.xlsx`;
+          }
+
+          document.getElementById("fileNameDisplay").textContent = filename;
+
+          const downloadBtn = document.getElementById("downloadBtn");
+          downloadBtn.onclick = function () {
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          };
+
+          document.getElementById("resetBtn").onclick = function () {
+            window.URL.revokeObjectURL(url);
+
+            successCard.style.display = "none";
+            form.style.display = "block";
+            submitBtn.disabled = false;
+          };
+
+          modal.style.display = "none";
+          form.style.display = "none";
+          successCard.style.display = "block";
+        } else {
+          const text = await response.text();
+
+          document.open();
+          document.write(text);
+          document.close();
+        }
+      } catch (error) {
+        console.error("Erro:", error);
+        alert("Ocorreu um erro ao conectar com o servidor.");
+        modal.style.display = "none";
+        submitBtn.disabled = false;
+      }
+    });
+
+  const textarea = document.getElementById("ids_notas");
+  const counter = document.getElementById("lineCount");
+
+  function updateCount() {
+    const text = textarea.value;
+    const lines = text
+      .split(/\r\n|\r|\n/)
+      .filter((line) => line.trim() !== "").length;
+    counter.textContent = `${lines} ${lines === 1 ? "nota" : "notas"}`;
+  }
+
+  if (textarea && counter) {
+    textarea.addEventListener("input", updateCount);
+    updateCount(); 
+  }
+</script>
+{% endblock %}
