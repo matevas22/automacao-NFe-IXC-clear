@@ -1,4 +1,4 @@
-# Sistema de Automação de Notas e Relatórios (Excel Basilio Notas)
+# Sistema de Automação de Notas e Relatórios (Excel Notas)
 
 Este é um sistema web desenvolvido em **Python com Flask** projetado para automatizar a geração de relatórios financeiros a partir de sistemas IXC Soft e realizar a conversão e extração de dados de arquivos PDF para Excel.
 
@@ -56,3 +56,5 @@ O sistema visa agilizar o processo de conferência de notas fiscais, integrando-
    ```bash
    git clone <url-do-repositorio>
    cd flask-notas
+
+### Obrigado ;)
