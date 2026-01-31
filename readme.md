@@ -4,7 +4,7 @@ Este é um sistema web desenvolvido em **Python com Flask** projetado para autom
 
 O sistema visa agilizar o processo de conferência de notas fiscais, integrando-se via API com provedores (Netflex, Fiberflex, Atuamax) e fornecendo ferramentas utilitárias para manipulação de documentos.
 
-## 🚀 Funcionalidades Principais
+## Funcionalidades Principais
 
 ### 1. Gerador de Relatórios Financeiros
 - **Integração via API:** Conecta-se aos sistemas IXC Soft de diferentes provedores.
@@ -33,7 +33,7 @@ O sistema visa agilizar o processo de conferência de notas fiscais, integrando-
 
 ---
 
-## 🛠️ Tecnologias Utilizadas
+## Tecnologias Utilizadas
 
 - **Backend:** Python 3, Flask
 - **Manipulação de Dados:** Pandas, NumPy, OpenPyXL, XlsxWriter
@@ -44,7 +44,7 @@ O sistema visa agilizar o processo de conferência de notas fiscais, integrando-
 
 ---
 
-## ⚙️ Instalação e Configuração
+##  Instalação e Configuração
 
 ### Pré-requisitos
 - Python 3.10 ou superior
