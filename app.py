@@ -450,4 +450,4 @@ def convert_pdf():
     return "Tipo de arquivo inválido. Por favor envie um PDF.", 400
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port="4050")
