@@ -32,7 +32,7 @@
 
 .upload-area:hover {
   border-color: var(--accent-color);
-  background-color: #eff6ff;
+  background-color: #bfdbff2a;
 }
 
 .upload-area input[type="file"] {
