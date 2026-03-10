@@ -3,6 +3,7 @@ from flask_talisman import Talisman
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 import requests
@@ -18,7 +19,19 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# Configurações de Proxy para quando estiver atrás do Nginx/Apache
+app.wsgi_app = ProxyFix(
+    app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1
+)
+
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'chave-super-secreta-padrao-troque-em-producao')
+
+# Adicione o domínio à lista de origens confiáveis para CSRF
+app.config['CSRF_TRUSTED_ORIGINS'] = [
+    'https://automacao-notas.internetflex.com', 
+    'http://automacao-notas.internetflex.com',
+    'http://177.200.161.254:4050'
+]
 
 csp = {
     'default-src': ["'self'"],
