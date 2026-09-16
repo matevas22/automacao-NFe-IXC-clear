@@ -97,7 +97,7 @@ O sistema visa agilizar o processo de conferência de notas fiscais, integrando-
 
 ---
 
-## 🐳 Passo a Passo (Rodando com Docker)
+## Passo a Passo (Rodando com Docker)
 
 Se preferir não instalar o Python/dependências na sua máquina, use o Docker:
 
@@ -124,7 +124,7 @@ Se preferir não instalar o Python/dependências na sua máquina, use o Docker:
 
 ---
 
-## 📖 Como Usar
+## Como Usar
 
 ### Gerar Relatório de Notas
 
