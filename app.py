@@ -24,11 +24,24 @@ app.wsgi_app = ProxyFix(
     app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1
 )
 
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'chave-super-secreta-padrao-troque-em-producao')
+MAX_UPLOAD_SIZE_MB = int(os.environ.get('MAX_UPLOAD_SIZE_MB', '16'))
+MAX_UPLOAD_SIZE = MAX_UPLOAD_SIZE_MB * 1024 * 1024
+
+app.config.update(
+    SECRET_KEY=os.environ.get('SECRET_KEY', 'chave-super-secreta-padrao-troque-em-producao'),
+    MAX_CONTENT_LENGTH=MAX_UPLOAD_SIZE,
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    WTF_CSRF_TIME_LIMIT=3600,
+)
+
+if os.environ.get('APP_ENV', '').lower() == 'production' and not os.environ.get('SECRET_KEY'):
+    raise RuntimeError('SECRET_KEY deve ser configurada em produção.')
 
 # Adicione o domínio à lista de origens confiáveis para CSRF
 app.config['CSRF_TRUSTED_ORIGINS'] = [
-    'https://automacao-notas.internetflex.com', 
+    'https://automacao-notas.internetflex.com',
     'http://automacao-notas.internetflex.com',
     'http://177.200.161.254:4050'
 ]
@@ -38,17 +51,39 @@ csp = {
     'frame-src': ["'self'", "https://docs.google.com"],
     'style-src': ["'self'", "https://fonts.googleapis.com", "'unsafe-inline'"],
     'font-src': ["'self'", "https://fonts.gstatic.com"],
-    'img-src': ["'self'", "data:", "https://wiki.internetflex.com"], 
+    'img-src': ["'self'", "data:", "https://wiki.internetflex.com"],
 }
 
-talisman = Talisman(app, content_security_policy=csp, force_https=False) 
+talisman = Talisman(app, content_security_policy=csp, force_https=False)
 limiter = Limiter(get_remote_address, app=app, default_limits=["2000 per day", "100 per hour"], storage_uri="memory://")
 csrf = CSRFProtect(app)
+
+
+@app.before_request
+def enforce_basic_auth():
+    username = os.environ.get('BASIC_AUTH_USERNAME')
+    password = os.environ.get('BASIC_AUTH_PASSWORD')
+
+    if not username or not password:
+        return None
+
+    auth = request.authorization
+    if auth and auth.username == username and auth.password == password:
+        return None
+
+    response = make_response("Autenticação requerida.", 401)
+    response.headers['WWW-Authenticate'] = 'Basic realm="Acesso restrito"'
+    return response
+
+
+@app.errorhandler(413)
+def payload_too_large(e):
+    return render_template("index.html", error=f"Arquivo excede o limite máximo permitido ({MAX_UPLOAD_SIZE_MB} MB)."), 413
+
 
 @app.errorhandler(429)
 def ratelimit_handler(e):
     return render_template("index.html", error="Você excedeu o limite de requisições. Por favor, aguarde um pouco e tente novamente (Limite: 100/hora ou 2000/dia)."), 429
-
 
 
 CONFIGS = {
@@ -88,20 +123,21 @@ CONFIGS = {
 }
 
 IDS_PRODUTOS_PERMITIDOS = [
-    '1702', '995', '994', '993', '992', '991', '990', '989', '988', '987', '986', '985', '984', '983', '982', '981', '980', 
-    '948', '946', '922', '840', '842',  '834', '826', '819', '772', '766', '756', '749', '747', '741', '740', '739', '738', '734', 
-    '733', '732', '731', '730', '725', '722', '721', '704', '695', '693', '692', '672', '671', '668', '667', '666', '665', '664', 
-    '663', '662', '661', '660', '202', '201', '200', '199', '198', '197', '195', '194', '193', '192', '191', '190', '189', '188', 
-    '187', '186', '185', '184', '183', '182', '181', '178', '177', '176', '175', '174', '173', '172', '171', '170', '169', '168', 
-    '167', '166', '165', '164', '163', '162', '161', '160', '159', '158', '157', '156', '155', '154', '152', '151', '150', '149', 
-    '148', '147', '146', '144', '143', '142', '141', '140', '139', '138', '137', '136', '135', '134', '133', '132', '131', '130', 
-    '129', '128', '127', '126', '125', '124', '123', '122', '121', '119', '118', '117', '116', '115', '114', '113', '112', '111', 
-    '110', '109', '108', '107', '106', '105', '104', '103', '102', '101', '100', '99', '98', '97', '96', '91', '90', '89', '88', 
-    '58', '57', '56', '55', '54', '53', '52', '50', '49', '48', '46', '45', '44', '43', '42', '41', '40', '39', '37', '34', '31', 
+    '1702', '995', '994', '993', '992', '991', '990', '989', '988', '987', '986', '985', '984', '983', '982', '981', '980',
+    '948', '946', '922', '840', '842',  '834', '826', '819', '772', '766', '756', '749', '747', '741', '740', '739', '738', '734',
+    '733', '732', '731', '730', '725', '722', '721', '704', '695', '693', '692', '672', '671', '668', '667', '666', '665', '664',
+    '663', '662', '661', '660', '202', '201', '200', '199', '198', '197', '195', '194', '193', '192', '191', '190', '189', '188',
+    '187', '186', '185', '184', '183', '182', '181', '178', '177', '176', '175', '174', '173', '172', '171', '170', '169', '168',
+    '167', '166', '165', '164', '163', '162', '161', '160', '159', '158', '157', '156', '155', '154', '152', '151', '150', '149',
+    '148', '147', '146', '144', '143', '142', '141', '140', '139', '138', '137', '136', '135', '134', '133', '132', '131', '130',
+    '129', '128', '127', '126', '125', '124', '123', '122', '121', '119', '118', '117', '116', '115', '114', '113', '112', '111',
+    '110', '109', '108', '107', '106', '105', '104', '103', '102', '101', '100', '99', '98', '97', '96', '91', '90', '89', '88',
+    '58', '57', '56', '55', '54', '53', '52', '50', '49', '48', '46', '45', '44', '43', '42', '41', '40', '39', '37', '34', '31',
     '30', '29', '28'
 ]
 
 cache_clientes = {}
+
 
 def buscar_venda_por_id(id_venda, session, url_base):
     url = f"{url_base}/vd_saida"
@@ -112,7 +148,7 @@ def buscar_venda_por_id(id_venda, session, url_base):
         "page": "1",
         "rp": "1"
     })
-    
+
     try:
         response = session.get(url, data=payload, timeout=5)
         if response.status_code == 200:
@@ -122,14 +158,15 @@ def buscar_venda_por_id(id_venda, session, url_base):
                 return registros[0]
     except Exception as e:
         print(f"Erro ao buscar detalhes da venda {id_venda}: {e}")
-    
+
     return None
+
 
 def buscar_cliente(id_cliente, session, url_base, provider_key):
     cache_key = (provider_key, id_cliente)
     if cache_key in cache_clientes:
         return cache_clientes[cache_key]
-        
+
     url = f"{url_base}/cliente"
     payload = json.dumps({
         "qtype": "cliente.id",
@@ -138,7 +175,7 @@ def buscar_cliente(id_cliente, session, url_base, provider_key):
         "page": "1",
         "rp": "1"
     })
-    
+
     try:
         response = session.get(url, data=payload, timeout=5)
         if response.status_code == 200:
@@ -151,8 +188,9 @@ def buscar_cliente(id_cliente, session, url_base, provider_key):
                 return nome
     except:
         pass
-        
+
     return "Erro ao buscar nome"
+
 
 def buscar_produtos_venda(id_venda, session, url_base, filter_type):
     url = f"{url_base}/vd_saida_produtos"
@@ -161,21 +199,21 @@ def buscar_produtos_venda(id_venda, session, url_base, filter_type):
         "query": str(id_venda),
         "oper": "=",
         "page": "1",
-        "rp": "100" 
+        "rp": "100"
     })
-    
+
     produtos_filtrados = []
     try:
         response = session.get(url, data=payload, timeout=5)
         if response.status_code == 200:
             data = response.json()
             registros = data.get('registros', [])
-            
+
             for reg in registros:
                 id_produto = str(reg.get('id_produto') or reg.get('produto', ''))
                 nome_prod = reg.get('descricao') or reg.get('descrisao') or "Sem Nome"
                 valor = reg.get('valor_total', '0.00')
-                
+
                 if filter_type == "ids":
                     if id_produto in IDS_PRODUTOS_PERMITIDOS:
                         produtos_filtrados.append({'nome': nome_prod, 'valor': valor, 'id_produto': id_produto})
@@ -184,11 +222,12 @@ def buscar_produtos_venda(id_venda, session, url_base, filter_type):
                     keywords = ["RESIDENCIAL", "FIBRA", "MEGA"]
                     if any(k in nome_upper for k in keywords):
                         produtos_filtrados.append({'nome': nome_prod, 'valor': valor, 'id_produto': id_produto})
-                    
+
     except Exception as e:
         print(f"Erro prod venda {id_venda}: {e}")
-        
+
     return produtos_filtrados
+
 
 def processar_id_venda(id_venda, provider_key):
     config = CONFIGS.get(provider_key)
@@ -205,19 +244,19 @@ def processar_id_venda(id_venda, provider_key):
         return None
 
     produtos = buscar_produtos_venda(id_venda, session, url_base, filter_type)
-    
+
     if not produtos:
         return None
-        
+
     dados_venda = buscar_venda_por_id(id_venda, session, url_base)
     if not dados_venda:
         return None
-        
+
     id_cliente = dados_venda.get('id_cliente')
     nome_cliente = buscar_cliente(id_cliente, session, url_base, provider_key)
-    
+
     nomes_str = " | ".join([p['nome'] for p in produtos])
-    
+
     soma_valores = 0.0
     for p in produtos:
         try:
@@ -232,9 +271,9 @@ def processar_id_venda(id_venda, provider_key):
         valor_cheio_float = float(dados_venda.get('valor_total', '0'))
     except:
         valor_cheio_float = 0.0
-    
+
     ids_prods_str = " | ".join([p['id_produto'] for p in produtos])
-    
+
     return {
         "ID Venda": id_venda,
         "Data Emissão": dados_venda.get('data_emissao'),
@@ -247,31 +286,33 @@ def processar_id_venda(id_venda, provider_key):
         "IDs Produtos": ids_prods_str
     }
 
+
 @app.route("/wiki")
 def wiki():
     return render_template("wiki.html")
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
         ids_texto = request.form.get("ids_notas")
         provider = request.form.get("provider", "").strip()
-        
+
         if not provider or provider not in CONFIGS:
             return render_template("index.html", error="Provedor inválido.")
 
         config = CONFIGS[provider]
-        
+
         ids_para_processar = [line.strip() for line in ids_texto.splitlines() if line.strip()]
-        
+
         if not ids_para_processar:
             return render_template("index.html", error="Nenhum ID informado.")
 
         dados_finais = []
-        
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
             future_to_id = {executor.submit(processar_id_venda, id_venda, provider): id_venda for id_venda in ids_para_processar}
-            
+
             for future in concurrent.futures.as_completed(future_to_id):
                 try:
                     res = future.result()
@@ -288,8 +329,8 @@ def index():
             df['ID Venda'] = df['ID Venda'].astype(int)
             df = df.sort_values(by='ID Venda')
         except:
-            pass 
-        
+            pass
+
         num_linhas = len(df)
         linha_total = {
             "ID Venda": "TOTAL",
@@ -307,29 +348,29 @@ def index():
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             df.to_excel(writer, index=False, sheet_name='Relatorio')
-            workbook  = writer.book
+            workbook = writer.book
             worksheet = writer.sheets['Relatorio']
-            
-            contabil_format = workbook.add_format({'num_format': '_-R$ * #,##0.00_-;-R$ * #,##0.00_-;_-R$ * "-"??_-;_-@_-'})
-            border_format = workbook.add_format({'border': 1})
-            
-            worksheet.set_column('F:F', 20, contabil_format) 
-            worksheet.set_column('H:H', 20, contabil_format)
-            
-            worksheet.set_column('A:A', 12) 
-            worksheet.set_column('B:C', 12) 
-            worksheet.set_column('D:D', 10) 
-            worksheet.set_column('E:E', 40) 
-            worksheet.set_column('G:G', 50) 
-            worksheet.set_column('I:I', 15) 
 
-            max_row = len(df) 
+            contabil_format = workbook.add_format({'num_format': '_-R$ * #,##0.00_-;-R$ * #,##0.00_-;_-R$ * "-"??_-;_-@_-'} )
+            border_format = workbook.add_format({'border': 1})
+
+            worksheet.set_column('F:F', 20, contabil_format)
+            worksheet.set_column('H:H', 20, contabil_format)
+
+            worksheet.set_column('A:A', 12)
+            worksheet.set_column('B:C', 12)
+            worksheet.set_column('D:D', 10)
+            worksheet.set_column('E:E', 40)
+            worksheet.set_column('G:G', 50)
+            worksheet.set_column('I:I', 15)
+
+            max_row = len(df)
             max_col = len(df.columns) - 1
-            worksheet.conditional_format(0, 0, max_row, max_col, 
+            worksheet.conditional_format(0, 0, max_row, max_col,
                                         {'type': 'formula', 'criteria': 'True', 'format': border_format})
 
         output.seek(0)
-        
+
         filename = f"relatorio_notas_{config['name']}.xlsx"
         return send_file(
             output,
@@ -340,127 +381,138 @@ def index():
 
     return render_template("index.html")
 
+
 @app.route('/converter')
 def converter():
     return render_template('converter.html')
+
 
 @app.route('/convert_pdf', methods=['POST'])
 def convert_pdf():
     if 'pdf_file' not in request.files:
         return "Nenhum arquivo enviado", 400
+
     file = request.files['pdf_file']
     if file.filename == '':
         return "Nenhum arquivo selecionado", 400
-    
+
+    if not file.filename.lower().endswith('.pdf'):
+        return "Tipo de arquivo inválido. Por favor envie um PDF.", 400
+
+    file.seek(0, os.SEEK_END)
+    file_size = file.tell()
+    file.seek(0)
+    if file_size > MAX_UPLOAD_SIZE:
+        return f"Arquivo excede o limite máximo permitido de {MAX_UPLOAD_SIZE_MB} MB.", 413
+
     conversion_mode = request.form.get('conversion_mode', 'all')
     pages_input = request.form.get('pages', '')
 
-    if file and file.filename.lower().endswith('.pdf'):
-        try:
-            output = io.BytesIO()
-            with pdfplumber.open(file) as pdf:
-                
-                target_pages_indices = []
-                total_pages = len(pdf.pages)
-                
-                if conversion_mode == 'all':
-                    target_pages_indices = list(range(total_pages))
-                else:
-                    try:
-                        parts = pages_input.split(',')
-                        for part in parts:
-                            part = part.strip()
-                            if not part: continue
-                            if '-' in part:
-                                start, end = map(int, part.split('-'))
-                                target_pages_indices.extend(range(start-1, end))
-                            elif part.isdigit():
-                                target_pages_indices.append(int(part)-1)
-                        
-                        target_pages_indices = sorted(list(set(target_pages_indices)))
-                        target_pages_indices = [p for p in target_pages_indices if 0 <= p < total_pages]
-                        
-                    except Exception:
-                        return "Formato de páginas inválido. Use formato: 1,3,5-7", 400
-                
-                if not target_pages_indices and conversion_mode == 'single':
-                     return "Nenhuma página válida selecionada.", 400
+    try:
+        output = io.BytesIO()
+        with pdfplumber.open(file) as pdf:
 
-                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            target_pages_indices = []
+            total_pages = len(pdf.pages)
+
+            if conversion_mode == 'all':
+                target_pages_indices = list(range(total_pages))
+            else:
+                try:
+                    parts = pages_input.split(',')
+                    for part in parts:
+                        part = part.strip()
+                        if not part:
+                            continue
+                        if '-' in part:
+                            start, end = map(int, part.split('-'))
+                            target_pages_indices.extend(range(start - 1, end))
+                        elif part.isdigit():
+                            target_pages_indices.append(int(part) - 1)
+
+                    target_pages_indices = sorted(list(set(target_pages_indices)))
+                    target_pages_indices = [p for p in target_pages_indices if 0 <= p < total_pages]
+
+                except Exception:
+                    return "Formato de páginas inválido. Use formato: 1,3,5-7", 400
+
+            if not target_pages_indices and conversion_mode == 'single':
+                return "Nenhuma página válida selecionada.", 400
+
+            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                row_offset = 0
+                has_data = False
+
+                found_tables = False
+
+                for i in target_pages_indices:
+                    page = pdf.pages[i]
+
+                    tables = page.extract_tables()
+
+                    if not tables:
+                        tables = page.extract_tables({
+                            "vertical_strategy": "text",
+                            "horizontal_strategy": "text",
+                            "snap_tolerance": 3,
+                        })
+
+                    if tables:
+                        for table in tables:
+                            if table:
+                                clean_table = [[col if col else "" for col in row] for row in table]
+                                clean_table = [row for row in clean_table if any(cell.strip() for cell in row)]
+
+                                if clean_table:
+                                    found_tables = True
+                                    df = pd.DataFrame(clean_table)
+                                    df.to_excel(writer, sheet_name='Dados Extraidos', startrow=row_offset, index=False, header=False)
+                                    row_offset += len(df) + 2
+
+                if not found_tables:
                     row_offset = 0
-                    has_data = False
-                    
-                    found_tables = False
-                    
                     for i in target_pages_indices:
                         page = pdf.pages[i]
-                        
-                        tables = page.extract_tables()
-                        
-                        if not tables:
-                            tables = page.extract_tables({
-                                "vertical_strategy": "text", 
-                                "horizontal_strategy": "text",
-                                "snap_tolerance": 3,
-                            })
+                        text = page.extract_text()
+                        if text:
+                            lines = text.split('\n')
+                            parsed_data = []
+                            for line in lines:
+                                if line.strip():
+                                    cols = re.split(r'\s{2,}', line.strip())
+                                    if len(cols) > 1:
+                                        parsed_data.append(cols)
+                                    else:
+                                        parsed_data.append([line.strip()])
 
-                        if tables:
-                            for table in tables:
-                                if table:
-                                    clean_table = [[col if col else "" for col in row] for row in table]
-                                    clean_table = [row for row in clean_table if any(cell.strip() for cell in row)]
-                                    
-                                    if clean_table:
-                                        found_tables = True
-                                        df = pd.DataFrame(clean_table)
-                                        df.to_excel(writer, sheet_name='Dados Extraidos', startrow=row_offset, index=False, header=False)
-                                        row_offset += len(df) + 2
-                    
-                    if not found_tables:
-                        row_offset = 0
-                        for i in target_pages_indices:
-                            page = pdf.pages[i]
-                            text = page.extract_text()
-                            if text:
-                                lines = text.split('\n')
-                                parsed_data = []
-                                for line in lines:
-                                    if line.strip():
-                                        cols = re.split(r'\s{2,}', line.strip())
-                                        if len(cols) > 1:
-                                            parsed_data.append(cols)
-                                        else:
-                                            parsed_data.append([line.strip()])
-                                
-                                if parsed_data:
-                                    df = pd.DataFrame(parsed_data)
-                                    df.to_excel(writer, sheet_name='Texto Extraidos', startrow=row_offset, index=False, header=False)
-                                    row_offset += len(df) + 2
-                                    has_data = True
-                    else:
-                        has_data = True
+                            if parsed_data:
+                                df = pd.DataFrame(parsed_data)
+                                df.to_excel(writer, sheet_name='Texto Extraidos', startrow=row_offset, index=False, header=False)
+                                row_offset += len(df) + 2
+                                has_data = True
+                else:
+                    has_data = True
 
-            if not has_data:
-                return "Não foi possível encontrar dados no PDF nas páginas selecionadas.", 400
+        if not has_data:
+            return "Não foi possível encontrar dados no PDF nas páginas selecionadas.", 400
 
-            output.seek(0)
-            
-            safe_filename = secure_filename(file.filename)
-            base_name = os.path.splitext(safe_filename)[0]
-            if not base_name:
-                 base_name = "relatorio_convertido"
+        output.seek(0)
 
-            return send_file(
-                output,
-                as_attachment=True,
-                download_name=f"{base_name}.xlsx",
-                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+        safe_filename = secure_filename(file.filename)
+        base_name = os.path.splitext(safe_filename)[0]
+        if not base_name:
+            base_name = "relatorio_convertido"
 
-        except Exception as e:
-            return f"Erro ao processar arquivo: {str(e)}", 500
-            
-    return "Tipo de arquivo inválido. Por favor envie um PDF.", 400
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=f"{base_name}.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    except Exception as e:
+        return f"Erro ao processar arquivo: {str(e)}", 500
+
 
 if __name__ == "__main__":
-    app.run(debug=True, port="4050")
+    app.run(debug=False, host="0.0.0.0", port=4050)
